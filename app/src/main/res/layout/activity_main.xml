@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".MainActivity"
+    >
 
 
     <androidx.cardview.widget.CardView
@@ -36,27 +37,27 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
+        android:contentDescription="@string/capture_disc"
+        android:gravity="center"
         app:icon="@drawable/ic_camera"
+        app:iconGravity="textStart"
         app:iconSize="48dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/camera_view"
-        android:gravity="center"
-        app:iconGravity="textStart"
-        android:contentDescription="@string/capture_disc"/>
+        app:layout_constraintTop_toBottomOf="@id/camera_view" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/results_card"
+        style="?attr/materialCardViewFilledStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
+        app:cardCornerRadius="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cam_capture"
-        style="?attr/materialCardViewFilledStyle"
-        app:cardCornerRadius="12dp">
+        app:layout_constraintTop_toBottomOf="@+id/cam_capture">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -69,24 +70,23 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Results"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                />
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="First take a picture."
                 android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="?android:attr/textColorSecondary"
-                />
+                android:textColor="?android:attr/textColorSecondary" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Results will appear here"
                 android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="?android:attr/textColorSecondary"
-                />
+                android:textColor="?android:attr/textColorSecondary" />
 
         </LinearLayout>
 

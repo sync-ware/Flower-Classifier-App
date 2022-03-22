@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">FlowerClassifier</string>
+    <string name="page_title">Flower Classifier</string>
+    <string name="capture_disc">to take a picture</string>
+</resources>

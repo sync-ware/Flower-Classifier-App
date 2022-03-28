@@ -27,6 +27,7 @@ import android.renderscript.Type;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
+import android.widget.TextView;
 
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
@@ -45,7 +46,10 @@ import com.google.android.odml.image.MlImage;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.sync.flowerclassifier.ml.Model;
 
+import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
+import org.tensorflow.lite.support.image.ops.ResizeOp;
 import org.tensorflow.lite.task.core.BaseOptions;
 import org.tensorflow.lite.task.core.vision.ImageProcessingOptions;
 import org.tensorflow.lite.task.vision.classifier.Classifications;
@@ -64,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private PreviewView previewView;
     private ImageCapture imageCapture;
+    private TextView topResult;
 
     private ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -91,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
             // You can use the API that requires the permission.
             activateCamera();
         }
+
+
 //        else if (shouldShowRequestPermissionRationale()) {
 //            // In an educational UI, explain to the user why your app requires this
 //            // permission for a specific feature to behave as expected. In this UI,
@@ -106,6 +113,8 @@ public class MainActivity extends AppCompatActivity {
             activateCamera();
         }
 
+        //topResult = findViewById(R.id.top_result_text);
+
         FloatingActionButton fab = findViewById(R.id.floating_action_button);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -120,38 +129,38 @@ public class MainActivity extends AppCompatActivity {
                                 ImageClassifier.ImageClassifierOptions options =
                                         ImageClassifier.ImageClassifierOptions.builder()
                                                 .setBaseOptions(BaseOptions.builder().useGpu().build())
-                                                .setMaxResults(1)
+                                                .setMaxResults(3)
                                                 .build();
                                 ImageClassifier imageClassifier =
                                         null;
+
+
                                 try {
+
                                     imageClassifier = ImageClassifier.createFromFileAndOptions(
-                                            MainActivity.this, "~/src/main/ml/model.tflite", options);
+                                            MainActivity.this, "model.tflite", options);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
 
-                                @SuppressLint("UnsafeOptInUsageError") Bitmap bitmap = toBitmap(image.getImage());
+                                Bitmap bitmap = convertImageProxyToBitmap(image);
 
-                                TensorImage inputImage = TensorImage.fromBitmap(bitmap);
-                                int width = bitmap.getWidth();
-                                int height = bitmap.getHeight();
-                                int cropSize = min(width, height);
-                                ImageProcessingOptions imageOptions =
-                                        ImageProcessingOptions.builder()
-
-                                                // Set the ROI to the center of the image.
-                                                .setRoi(
-                                                        new Rect(
-                                                                /*left=*/ (width - cropSize) / 2,
-                                                                /*top=*/ (height - cropSize) / 2,
-                                                                /*right=*/ (width + cropSize) / 2,
-                                                                /*bottom=*/ (height + cropSize) / 2))
+                                ImageProcessor imageProcessor =
+                                        new ImageProcessor.Builder()
+                                                .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
                                                 .build();
 
-                                List<Classifications> results = imageClassifier.classify(inputImage,
-                                        imageOptions);
-                                int x = 0;
+// Create a TensorImage object. This creates the tensor of the corresponding
+// tensor type (uint8 in this case) that the TensorFlow Lite interpreter needs.
+                                TensorImage inputImage = new TensorImage(DataType.UINT8);
+
+// Analysis code for every frame
+// Preprocess the image
+                                inputImage.load(bitmap);
+                                inputImage = imageProcessor.process(inputImage);
+
+                                List<Classifications> results = imageClassifier.classify(inputImage);
+                                topResult.setText(results.get(0).getCategories().get(0).getLabel());
                             }
                             @Override
                             public void onError(ImageCaptureException error) {
@@ -164,28 +173,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private Bitmap toBitmap(Image image) {
-        Image.Plane[] planes = image.getPlanes();
-        ByteBuffer yBuffer = planes[0].getBuffer();
-        ByteBuffer uBuffer = planes[1].getBuffer();
-        ByteBuffer vBuffer = planes[2].getBuffer();
-
-        int ySize = yBuffer.remaining();
-        int uSize = uBuffer.remaining();
-        int vSize = vBuffer.remaining();
-
-        byte[] nv21 = new byte[ySize + uSize + vSize];
-        //U and V are swapped
-        yBuffer.get(nv21, 0, ySize);
-        vBuffer.get(nv21, ySize, vSize);
-        uBuffer.get(nv21, ySize + vSize, uSize);
-
-        YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, image.getWidth(), image.getHeight(), null);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        yuvImage.compressToJpeg(new Rect(0, 0, yuvImage.getWidth(), yuvImage.getHeight()), 75, out);
-
-        byte[] imageBytes = out.toByteArray();
-        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+    private Bitmap convertImageProxyToBitmap(ImageProxy image) {
+        ByteBuffer byteBuffer = image.getPlanes()[0].getBuffer();
+        byteBuffer.rewind();
+        byte[] bytes = new byte[byteBuffer.capacity()];
+        byteBuffer.get(bytes);
+        byte[] clonedBytes = bytes.clone();
+        return BitmapFactory.decodeByteArray(clonedBytes, 0, clonedBytes.length);
     }
 
     private void activateCamera(){
@@ -204,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
 
     void bindPreview(@NonNull ProcessCameraProvider cameraProvider) {
         Preview preview = new Preview.Builder()
-                .setTargetResolution(new Size(244, 244))
                 .build();
 
 

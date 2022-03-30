@@ -18,6 +18,7 @@ import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.renderscript.Allocation;
 import android.renderscript.Element;
@@ -27,6 +28,7 @@ import android.renderscript.Type;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.camera.core.AspectRatio;
@@ -41,6 +43,8 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.camera.view.PreviewView;
 
+import com.google.android.material.chip.Chip;
+import com.google.android.material.divider.MaterialDividerItemDecoration;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.odml.image.MlImage;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -59,9 +63,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -69,6 +78,14 @@ public class MainActivity extends AppCompatActivity {
     private PreviewView previewView;
     private ImageCapture imageCapture;
     private TextView topResult;
+    private Chip topChip;
+    private TextView secondResult;
+    private Chip secondChip;
+    private TextView thirdResult;
+    private Chip thirdChip;
+    private Chip infChip;
+    private ImageClassifier imageClassifier = null;
+    private ImageView imagePreview;
 
     private ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -89,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Executor mainExecutor = ContextCompat.getMainExecutor(this);
 
         if (ContextCompat.checkSelfPermission(
                 this, Manifest.permission.CAMERA) ==
@@ -113,64 +131,93 @@ public class MainActivity extends AppCompatActivity {
             activateCamera();
         }
 
-        //topResult = findViewById(R.id.top_result_text);
+        topResult = findViewById(R.id.result_1);
+        secondResult = findViewById(R.id.result_2);
+        thirdResult = findViewById(R.id.result_3);
+
+        topChip = findViewById(R.id.chip_1);
+        secondChip = findViewById(R.id.chip_2);
+        thirdChip = findViewById(R.id.chip_3);
+        infChip = findViewById(R.id.chip_inf);
+
+        View div1 = findViewById(R.id.div_1);
+        View div2 = findViewById(R.id.div_2);
+        View div3 = findViewById(R.id.div_3);
+
+        imagePreview = findViewById(R.id.image_preview);
+
+        ImageClassifier.ImageClassifierOptions options =
+                ImageClassifier.ImageClassifierOptions.builder()
+                        .setBaseOptions(BaseOptions.builder().useGpu().build())
+                        .setMaxResults(3)
+                        .build();
+        try {
+
+            imageClassifier = ImageClassifier.createFromFileAndOptions(
+                    this, "model.tflite", options);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        ImageProcessor imageProcessor =
+                new ImageProcessor.Builder()
+                        .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
+                        .build();
 
         FloatingActionButton fab = findViewById(R.id.floating_action_button);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
+        fab.setOnClickListener(view -> imageCapture.takePicture(mainExecutor,
+                new ImageCapture.OnImageCapturedCallback() {
 
-                imageCapture.takePicture(ContextCompat.getMainExecutor(MainActivity.this),
-                        new ImageCapture.OnImageCapturedCallback() {
-
-                            @Override
-                            public void onCaptureSuccess(ImageProxy image){
-                                // Initialization
-                                ImageClassifier.ImageClassifierOptions options =
-                                        ImageClassifier.ImageClassifierOptions.builder()
-                                                .setBaseOptions(BaseOptions.builder().useGpu().build())
-                                                .setMaxResults(3)
-                                                .build();
-                                ImageClassifier imageClassifier =
-                                        null;
+                    @Override
+                    public void onCaptureSuccess(ImageProxy image){
+                        // Initialization
 
 
-                                try {
 
-                                    imageClassifier = ImageClassifier.createFromFileAndOptions(
-                                            MainActivity.this, "model.tflite", options);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
+                        Instant startTime = Instant.now();
+                        Bitmap bitmap = convertImageProxyToBitmap(image);
+                        imagePreview.setImageBitmap(bitmap);
+                        imagePreview.setVisibility(View.VISIBLE);
+                        previewView.setVisibility(View.INVISIBLE);
 
-                                Bitmap bitmap = convertImageProxyToBitmap(image);
+                        TensorImage inputImage = new TensorImage(DataType.UINT8);
 
-                                ImageProcessor imageProcessor =
-                                        new ImageProcessor.Builder()
-                                                .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
-                                                .build();
+                        inputImage.load(bitmap);
+                        inputImage = imageProcessor.process(inputImage);
 
-// Create a TensorImage object. This creates the tensor of the corresponding
-// tensor type (uint8 in this case) that the TensorFlow Lite interpreter needs.
-                                TensorImage inputImage = new TensorImage(DataType.UINT8);
+                        List<Classifications> results = imageClassifier.classify(inputImage);
 
-// Analysis code for every frame
-// Preprocess the image
-                                inputImage.load(bitmap);
-                                inputImage = imageProcessor.process(inputImage);
+                        Instant endTime = Instant.now();
+                        Duration timeElapsed = Duration.between(startTime, endTime);
+                        runOnUiThread(() -> {
+                            topResult.setText(results.get(0).getCategories().get(0).getLabel());
+                            secondResult.setText(results.get(0).getCategories().get(1).getLabel());
+                            thirdResult.setText(results.get(0).getCategories().get(2).getLabel());
 
-                                List<Classifications> results = imageClassifier.classify(inputImage);
-                                topResult.setText(results.get(0).getCategories().get(0).getLabel());
-                            }
-                            @Override
-                            public void onError(ImageCaptureException error) {
-                                // insert your code here.
-                            }
-                        }
-                );
+                            topChip.setVisibility(View.VISIBLE);
+                            secondChip.setVisibility(View.VISIBLE);
+                            thirdChip.setVisibility(View.VISIBLE);
+                            infChip.setVisibility(View.VISIBLE);
 
-            }
-        });
+                            div1.setVisibility(View.VISIBLE);
+                            div2.setVisibility(View.VISIBLE);
+                            div3.setVisibility(View.VISIBLE);
+
+                            topChip.setText(Math.ceil(results.get(0).getCategories().get(0).getScore()*100) + "%");
+                            secondChip.setText(Math.ceil(results.get(0).getCategories().get(1).getScore()*100) + "%");
+                            thirdChip.setText(Math.ceil(results.get(0).getCategories().get(2).getScore()*100) + "%");
+                            infChip.setText(timeElapsed.toMillis() + "ms");
+                        });
+
+                        image.close();
+
+                    }
+                    @Override
+                    public void onError(ImageCaptureException error) {
+                        // insert your code here.
+                    }
+                }
+        ));
     }
 
     private Bitmap convertImageProxyToBitmap(ImageProxy image) {
@@ -212,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                         .setTargetRotation(Surface.ROTATION_0)
                         .build();
 
-        Camera camera = cameraProvider.bindToLifecycle((LifecycleOwner)this, cameraSelector, imageCapture, preview);
+        Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector, imageCapture, preview);
 
 
 

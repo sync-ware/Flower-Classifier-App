@@ -15,6 +15,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
@@ -28,6 +29,7 @@ import android.renderscript.Type;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -164,15 +166,17 @@ public class MainActivity extends AppCompatActivity {
                         .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
                         .build();
 
-        FloatingActionButton fab = findViewById(R.id.floating_action_button);
-        fab.setOnClickListener(view -> imageCapture.takePicture(mainExecutor,
+        Button captureBtn = findViewById(R.id.capture_button);
+        Button clearBtn = findViewById(R.id.clear_button);
+        captureBtn.setOnClickListener(view -> imageCapture.takePicture(mainExecutor,
                 new ImageCapture.OnImageCapturedCallback() {
 
                     @Override
                     public void onCaptureSuccess(ImageProxy image){
                         // Initialization
 
-
+                        captureBtn.setVisibility(View.GONE);
+                        clearBtn.setVisibility(View.VISIBLE);
 
                         Instant startTime = Instant.now();
                         Bitmap bitmap = convertImageProxyToBitmap(image);
@@ -218,15 +222,27 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         ));
+
+        clearBtn.setOnClickListener(view -> {
+            imagePreview.setVisibility(View.INVISIBLE);
+            previewView.setVisibility(View.VISIBLE);
+
+            clearBtn.setVisibility(View.GONE);
+            captureBtn.setVisibility(View.VISIBLE);
+        });
     }
 
     private Bitmap convertImageProxyToBitmap(ImageProxy image) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(90);
         ByteBuffer byteBuffer = image.getPlanes()[0].getBuffer();
         byteBuffer.rewind();
         byte[] bytes = new byte[byteBuffer.capacity()];
         byteBuffer.get(bytes);
         byte[] clonedBytes = bytes.clone();
-        return BitmapFactory.decodeByteArray(clonedBytes, 0, clonedBytes.length);
+        Bitmap convertedBitmap = BitmapFactory.decodeByteArray(clonedBytes, 0, clonedBytes.length);
+        Bitmap rotatedBitmap = Bitmap.createBitmap(convertedBitmap, 0, 0, convertedBitmap.getWidth(), convertedBitmap.getHeight(), matrix, true);
+        return rotatedBitmap;
     }
 
     private void activateCamera(){
@@ -256,6 +272,7 @@ public class MainActivity extends AppCompatActivity {
 
         imageCapture =
                 new ImageCapture.Builder()
+                        .setTargetResolution(new Size(480, 480))
                         .setTargetRotation(Surface.ROTATION_0)
                         .build();
 

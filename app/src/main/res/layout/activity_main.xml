@@ -230,20 +230,43 @@
 
     </androidx.cardview.widget.CardView>
 
-
-
-
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/floating_action_button"
-        style="?attr/floatingActionButtonLargeStyle"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:contentDescription=""
+        android:orientation="horizontal"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/parent_card"
         app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@drawable/ic_camera" />
+        app:layout_constraintTop_toBottomOf="@id/parent_card">
+
+        <Button
+            android:id="@+id/capture_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+
+            app:icon="@drawable/ic_camera"
+            android:textAlignment="center"
+            app:iconGravity="textStart"
+            app:iconSize="36dp"/>
+
+        <Button
+            android:id="@+id/clear_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+
+            app:icon="@drawable/ic_clear"
+            android:textAlignment="center"
+            app:iconGravity="textStart"
+            app:iconSize="36dp"
+            android:visibility="gone"/>
+    </LinearLayout>
+
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

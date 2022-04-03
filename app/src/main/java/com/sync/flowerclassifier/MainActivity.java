@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -18,6 +19,7 @@ import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.graphics.drawable.Drawable;
 import android.media.Image;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -41,6 +43,7 @@ import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.camera.view.PreviewView;
@@ -50,12 +53,13 @@ import com.google.android.material.divider.MaterialDividerItemDecoration;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.odml.image.MlImage;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.sync.flowerclassifier.ml.Model;
 
 import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.support.common.ops.NormalizeOp;
 import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
 import org.tensorflow.lite.support.image.ops.ResizeOp;
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 import org.tensorflow.lite.task.core.BaseOptions;
 import org.tensorflow.lite.task.core.vision.ImageProcessingOptions;
 import org.tensorflow.lite.task.vision.classifier.Classifications;
@@ -64,6 +68,7 @@ import org.tensorflow.lite.task.vision.classifier.ImageClassifier;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,10 +86,16 @@ public class MainActivity extends AppCompatActivity {
     private ImageCapture imageCapture;
     private TextView topResult;
     private Chip topChip;
+    private ImageView topImage;
+    private CardView topImageCard;
     private TextView secondResult;
     private Chip secondChip;
+    private ImageView secondImage;
+    private CardView secondImageCard;
     private TextView thirdResult;
     private Chip thirdChip;
+    private ImageView thirdImage;
+    private CardView thirdImageCard;
     private Chip infChip;
     private ImageClassifier imageClassifier = null;
     private ImageView imagePreview;
@@ -142,6 +153,13 @@ public class MainActivity extends AppCompatActivity {
         thirdChip = findViewById(R.id.chip_3);
         infChip = findViewById(R.id.chip_inf);
 
+        topImage = findViewById(R.id.image_1);
+        topImageCard = findViewById(R.id.card_image_1);
+        secondImage = findViewById(R.id.image_2);
+        secondImageCard = findViewById(R.id.card_image_2);
+        thirdImage = findViewById(R.id.image_3);
+        thirdImageCard = findViewById(R.id.card_image_3);
+
         View div1 = findViewById(R.id.div_1);
         View div2 = findViewById(R.id.div_2);
         View div3 = findViewById(R.id.div_3);
@@ -156,14 +174,14 @@ public class MainActivity extends AppCompatActivity {
         try {
 
             imageClassifier = ImageClassifier.createFromFileAndOptions(
-                    this, "model.tflite", options);
+                    this, "InceptionV3.tflite", options);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         ImageProcessor imageProcessor =
                 new ImageProcessor.Builder()
-                        .add(new ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
+                        .add(new ResizeOp(299, 299, ResizeOp.ResizeMethod.BILINEAR))
                         .build();
 
         Button captureBtn = findViewById(R.id.capture_button);
@@ -184,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
                         imagePreview.setVisibility(View.VISIBLE);
                         previewView.setVisibility(View.INVISIBLE);
 
-                        TensorImage inputImage = new TensorImage(DataType.UINT8);
+                        TensorImage inputImage = new TensorImage(DataType.FLOAT32);
 
                         inputImage.load(bitmap);
                         inputImage = imageProcessor.process(inputImage);
@@ -194,9 +212,14 @@ public class MainActivity extends AppCompatActivity {
                         Instant endTime = Instant.now();
                         Duration timeElapsed = Duration.between(startTime, endTime);
                         runOnUiThread(() -> {
-                            topResult.setText(results.get(0).getCategories().get(0).getLabel());
-                            secondResult.setText(results.get(0).getCategories().get(1).getLabel());
-                            thirdResult.setText(results.get(0).getCategories().get(2).getLabel());
+
+                            String result1 = results.get(0).getCategories().get(0).getLabel();
+                            String result2 = results.get(0).getCategories().get(1).getLabel();
+                            String result3 = results.get(0).getCategories().get(2).getLabel();
+
+                            topResult.setText(result1);
+                            secondResult.setText(result2);
+                            thirdResult.setText(result3);
 
                             topChip.setVisibility(View.VISIBLE);
                             secondChip.setVisibility(View.VISIBLE);
@@ -206,6 +229,15 @@ public class MainActivity extends AppCompatActivity {
                             div1.setVisibility(View.VISIBLE);
                             div2.setVisibility(View.VISIBLE);
                             div3.setVisibility(View.VISIBLE);
+
+                            topImageCard.setVisibility(View.VISIBLE);
+                            topImage.setImageDrawable(getDrawable(getResId(result1.replace(' ', '_'), R.drawable.class)));
+
+                            secondImageCard.setVisibility(View.VISIBLE);
+                            secondImage.setImageDrawable(getDrawable(getResId(result2.replace(' ', '_'), R.drawable.class)));
+
+                            thirdImageCard.setVisibility(View.VISIBLE);
+                            thirdImage.setImageDrawable(getDrawable(getResId(result3.replace(' ', '_'), R.drawable.class)));
 
                             topChip.setText(Math.ceil(results.get(0).getCategories().get(0).getScore()*100) + "%");
                             secondChip.setText(Math.ceil(results.get(0).getCategories().get(1).getScore()*100) + "%");
@@ -280,5 +312,16 @@ public class MainActivity extends AppCompatActivity {
 
 
 
+    }
+
+    public static int getResId(String resName, Class<?> c) {
+
+        try {
+            Field idField = c.getDeclaredField(resName);
+            return idField.getInt(idField);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
     }
 }

@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageClassifier imageClassifier = null;
     private ImageView imagePreview;
 
-    private ActivityResultLauncher<String> requestPermissionLauncher =
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) {
                     // Permission is granted. Continue the action or workflow in your
@@ -230,14 +230,18 @@ public class MainActivity extends AppCompatActivity {
                             div2.setVisibility(View.VISIBLE);
                             div3.setVisibility(View.VISIBLE);
 
+                            String result1Res = result1.replaceAll("\\s|[-]", "_");
+                            String result2Res = result2.replaceAll("\\s|[-]", "_");
+                            String result3Res = result3.replaceAll("\\s|[-]", "_");
+
                             topImageCard.setVisibility(View.VISIBLE);
-                            topImage.setImageDrawable(getDrawable(getResId(result1.replace(' ', '_'), R.drawable.class)));
+                            topImage.setImageDrawable(getDrawable(getResId(result1Res, R.drawable.class)));
 
                             secondImageCard.setVisibility(View.VISIBLE);
-                            secondImage.setImageDrawable(getDrawable(getResId(result2.replace(' ', '_'), R.drawable.class)));
+                            secondImage.setImageDrawable(getDrawable(getResId(result2Res, R.drawable.class)));
 
                             thirdImageCard.setVisibility(View.VISIBLE);
-                            thirdImage.setImageDrawable(getDrawable(getResId(result3.replace(' ', '_'), R.drawable.class)));
+                            thirdImage.setImageDrawable(getDrawable(getResId(result3Res, R.drawable.class)));
 
                             topChip.setText(Math.ceil(results.get(0).getCategories().get(0).getScore()*100) + "%");
                             secondChip.setText(Math.ceil(results.get(0).getCategories().get(1).getScore()*100) + "%");
